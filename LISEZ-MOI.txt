@@ -1,0 +1,7 @@
+STM TERRAIN VOIRIE
+1. Déposer ces fichiers sur GitHub.
+2. Créer/conserver le dossier plannings.
+3. Y déposer le planning sous le nom voirie.pdf.
+4. Le bouton PLANNING DE LA SEMAINE ouvre ce fichier.
+5. Les agents peuvent dicter leurs interventions supplémentaires, les corriger puis transmettre un PDF au STM.
+Adresse prévue : atelier@ville-Gignac.com.
