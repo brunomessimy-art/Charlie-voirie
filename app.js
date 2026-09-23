@@ -1,9 +1,67 @@
-const A=["Signalisation verticale","Signalisation horizontale","Enrobé / nids-de-poule","Mobilier urbain","Maçonnerie","Réseaux","Barriérage","Entretien / nettoyage","Autre"],EMAIL="atelier@ville-Gignac.com";let M=JSON.parse(localStorage.getItem("stmVoirieMissions")||"[]"),E=null;const $=x=>document.getElementById(x);$("activity").innerHTML=A.map(x=>`<option>${x}</option>`).join("");function save(){localStorage.setItem("stmVoirieMissions",JSON.stringify(M));$("count").textContent=M.length}save();
-function classify(s){let x=s.toLowerCase(),a=/marquage|peinture au sol/.test(x)?"Signalisation horizontale":/panneau|stop|signalisation/.test(x)?"Signalisation verticale":/enrob|nid.?de.?poule/.test(x)?"Enrobé / nids-de-poule":/barrière|barriere/.test(x)?"Barriérage":/mobilier|banc|potelet|borne/.test(x)?"Mobilier urbain":/maçon|macon|bordure|béton|beton/.test(x)?"Maçonnerie":/réseau|reseau|regard|avaloir/.test(x)?"Réseaux":"Autre",loc="",m=s.match(/\b(?:rue|avenue|route|chemin|impasse|place|parc|square)\s+[^,.]+/i);if(m)loc=m[0];return{team:"Voirie",activity:a,location:loc,title:s.slice(0,120),description:s}}
-function edit(d,i=null){E=i;$("activity").value=A.includes(d.activity)?d.activity:"Autre";$("location").value=d.location||"";$("titleText").value=d.title||"";$("description").value=d.description||"";editDlg.showModal()}
-$("saveBtn").onclick=e=>{e.preventDefault();let d={team:"Voirie",activity:$("activity").value,location:$("location").value.trim(),title:$("titleText").value.trim(),description:$("description").value.trim(),created:new Date().toISOString()};if(!d.title)return alert("Indiquez l'intervention.");E===null?M.push(d):M[E]={...M[E],...d};save();editDlg.close();$("heard").textContent="✓ Intervention enregistrée."};
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;$("mic").onclick=()=>{if(!SR){let s=prompt("Dictez avec le micro du clavier ou saisissez l'intervention :");if(s)edit(classify(s));return}let r=new SR();r.lang="fr-FR";$("mic").classList.add("listening");$("heard").textContent="🎙️ Je vous écoute…";r.onresult=e=>{let s=e.results[0][0].transcript;$("heard").textContent="« "+s+" »";edit(classify(s))};r.onend=()=> $("mic").classList.remove("listening");r.start()};
-const esc=s=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));function list(){missionList.innerHTML=M.length?M.map((m,i)=>`<div class="mission"><b>${i+1}. ${esc(m.title)}</b><small>Voirie • ${esc(m.activity)} • ${esc(m.location||"Lieu à préciser")}</small><div class="row"><button onclick="ed(${i})">✏️ Modifier</button><button class="del" onclick="del(${i})">🗑️ Supprimer</button></div></div>`).join(""):"<p>Aucune intervention.</p>";listDlg.showModal()}$("listBtn").onclick=list;window.ed=i=>{listDlg.close();edit(M[i],i)};window.del=i=>{if(confirm("Supprimer ?")){M.splice(i,1);save();list()}};
-function hx(s){let a=[];for(let ch of s){let n=ch.charCodeAt(0);if(n>255)n=63;a.push(n.toString(16).padStart(2,"0"))}return"<"+a.join("")+">"}function pdf(){if(!M.length)return null;let L=["STM TERRAIN VOIRIE - IMPORT CHARLI STM",""];M.forEach((m,i)=>{let d=new Date(),r=String(d.getFullYear()).slice(-2)+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0")+String(i+1).padStart(3,"0");L.push(r+" "+m.title,"VOI-"+m.activity+" Voirie","LIEU: "+(m.location||"A PRECISER"),"DESCRIPTION: "+(m.description||m.title),"")});let c="BT\n/F1 10 Tf\n45 800 Td\n"+L.map(x=>hx(x)+" Tj\n0 -13 Td\n").join("")+"ET",o=[],add=s=>(o.push(s),o.length),f=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),st=add(`<< /Length ${new TextEncoder().encode(c).length} >>\nstream\n${c}\nendstream`),p=add(`<< /Type /Page /Parent 4 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${f} 0 R >> >> /Contents ${st} 0 R >>`),ps=add(`<< /Type /Pages /Kids [${p} 0 R] /Count 1 >>`),cat=add(`<< /Type /Catalog /Pages ${ps} 0 R >>`),s="%PDF-1.4\n",off=[0];o.forEach((x,i)=>{off[i+1]=new TextEncoder().encode(s).length;s+=`${i+1} 0 obj\n${x}\nendobj\n`});let xr=new TextEncoder().encode(s).length;s+=`xref\n0 ${o.length+1}\n0000000000 65535 f \n`;for(let i=1;i<=o.length;i++)s+=String(off[i]).padStart(10,"0")+" 00000 n \n";s+=`trailer\n<< /Size ${o.length+1} /Root ${cat} 0 R >>\nstartxref\n${xr}\n%%EOF`;return new Blob([new TextEncoder().encode(s)],{type:"application/pdf"})}
-$("shareBtn").onclick=async()=>{let b=pdf();if(!b)return alert("Aucune intervention.");let f=new File([b],`Interventions_Voirie_${new Date().toISOString().slice(0,10)}.pdf`,{type:"application/pdf"});try{if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f],title:"Interventions Voirie",text:"Destinataire : "+EMAIL});else{let a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=f.name;a.click();location.href=`mailto:${EMAIL}?subject=Interventions%20Voirie`}}catch(e){}};
-$("clearBtn").onclick=()=>{if(M.length&&confirm("Effacer les interventions après transmission ?")){M=[];save()}};if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));
+const A=["Signalisation verticale","Signalisation horizontale","Enrobé / nids-de-poule","Mobilier urbain","Maçonnerie","Réseaux","Barriérage","Entretien / nettoyage","Autre"],EMAIL="atelier@ville-Gignac.com";
+let M=JSON.parse(localStorage.getItem("stmVoirieMissions")||"[]"),E=null;
+const $=x=>document.getElementById(x);
+$("activity").innerHTML=A.map(x=>`<option>${x}</option>`).join("");
+function save(){localStorage.setItem("stmVoirieMissions",JSON.stringify(M));$("count").textContent=M.length}
+save();
+
+function nextTerrainRef(){
+ const d=new Date(),day=String(d.getFullYear()).slice(-2)+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
+ const key="stmVoirieRefSeq_"+day;
+ let n=parseInt(localStorage.getItem(key)||"0",10)+1;
+ if(n>999)n=1;
+ localStorage.setItem(key,String(n));
+ return day+String(n).padStart(3,"0");
+}
+function classify(s){
+ let x=s.toLowerCase(),a=/marquage|peinture au sol/.test(x)?"Signalisation horizontale":/panneau|stop|signalisation/.test(x)?"Signalisation verticale":/enrob|nid.?de.?poule/.test(x)?"Enrobé / nids-de-poule":/barrière|barriere/.test(x)?"Barriérage":/mobilier|banc|potelet|borne/.test(x)?"Mobilier urbain":/maçon|macon|bordure|béton|beton/.test(x)?"Maçonnerie":/réseau|reseau|regard|avaloir/.test(x)?"Réseaux":"Autre",loc="",m=s.match(/\b(?:rue|avenue|route|chemin|impasse|place|parc|square)\s+[^,.]+/i);
+ if(m)loc=m[0];
+ return{team:"Voirie",activity:a,location:loc,title:s.slice(0,120),description:s}
+}
+function edit(d,i=null){
+ E=i;$("activity").value=A.includes(d.activity)?d.activity:"Autre";$("location").value=d.location||"";$("titleText").value=d.title||"";$("description").value=d.description||"";editDlg.showModal()
+}
+$("saveBtn").onclick=e=>{
+ e.preventDefault();
+ let old=E===null?null:M[E];
+ let d={team:"Voirie",activity:$("activity").value,location:$("location").value.trim(),title:$("titleText").value.trim(),description:$("description").value.trim(),created:old?.created||new Date().toISOString(),terrainRef:old?.terrainRef||nextTerrainRef()};
+ if(!d.title)return alert("Indiquez l'intervention.");
+ E===null?M.push(d):M[E]={...M[E],...d};save();editDlg.close();$("heard").textContent="✓ Intervention enregistrée."
+};
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+$("mic").onclick=()=>{
+ if(!SR){let s=prompt("Dictez avec le micro du clavier ou saisissez l'intervention :");if(s)edit(classify(s));return}
+ let r=new SR();r.lang="fr-FR";$("mic").classList.add("listening");$("heard").textContent="🎙️ Je vous écoute…";
+ r.onresult=e=>{let s=e.results[0][0].transcript;$("heard").textContent="« "+s+" »";edit(classify(s))};
+ r.onend=()=> $("mic").classList.remove("listening");r.start()
+};
+const esc=s=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function list(){
+ missionList.innerHTML=M.length?M.map((m,i)=>`<div class="mission"><b>${i+1}. ${esc(m.title)}</b><small>Voirie • ${esc(m.activity)} • ${esc(m.location||"Lieu à préciser")} • Réf. ${esc(m.terrainRef||"à attribuer")}</small><div class="row"><button onclick="ed(${i})">✏️ Modifier</button><button class="del" onclick="del(${i})">🗑️ Supprimer</button></div></div>`).join(""):"<p>Aucune intervention.</p>";listDlg.showModal()
+}
+$("listBtn").onclick=list;
+window.ed=i=>{listDlg.close();edit(M[i],i)};
+window.del=i=>{if(confirm("Supprimer ?")){M.splice(i,1);save();list()}};
+
+function hx(s){let a=[];for(let ch of s){let n=ch.charCodeAt(0);if(n>255)n=63;a.push(n.toString(16).padStart(2,"0"))}return"<"+a.join("")+">"}
+function pdf(){
+ if(!M.length)return null;
+ let L=["STM TERRAIN VOIRIE - IMPORT CHARLI STM",""];
+ M.forEach(m=>{if(!m.terrainRef)m.terrainRef=nextTerrainRef();L.push(m.terrainRef+" "+m.title,"VOI-"+m.activity+" Voirie","LIEU: "+(m.location||"A PRECISER"),"DESCRIPTION: "+(m.description||m.title),"")});
+ save();
+ let c="BT\n/F1 10 Tf\n45 800 Td\n"+L.map(x=>hx(x)+" Tj\n0 -13 Td\n").join("")+"ET",o=[],add=s=>(o.push(s),o.length),f=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),st=add(`<< /Length ${new TextEncoder().encode(c).length} >>\nstream\n${c}\nendstream`),p=add(`<< /Type /Page /Parent 4 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${f} 0 R >> >> /Contents ${st} 0 R >>`),ps=add(`<< /Type /Pages /Kids [${p} 0 R] /Count 1 >>`),cat=add(`<< /Type /Catalog /Pages ${ps} 0 R >>`),s="%PDF-1.4\n",off=[0];
+ o.forEach((x,i)=>{off[i+1]=new TextEncoder().encode(s).length;s+=`${i+1} 0 obj\n${x}\nendobj\n`});
+ let xr=new TextEncoder().encode(s).length;s+=`xref\n0 ${o.length+1}\n0000000000 65535 f \n`;for(let i=1;i<=o.length;i++)s+=String(off[i]).padStart(10,"0")+" 00000 n \n";
+ s+=`trailer\n<< /Size ${o.length+1} /Root ${cat} 0 R >>\nstartxref\n${xr}\n%%EOF`;
+ return new Blob([new TextEncoder().encode(s)],{type:"application/pdf"})
+}
+$("shareBtn").onclick=async()=>{
+ let b=pdf();if(!b)return alert("Aucune intervention.");
+ let f=new File([b],`Interventions_Voirie_${new Date().toISOString().slice(0,10)}.pdf`,{type:"application/pdf"});
+ try{
+  if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f],title:"Interventions Voirie",text:"Destinataire : "+EMAIL});
+  else{let a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=f.name;a.click();location.href=`mailto:${EMAIL}?subject=Interventions%20Voirie`}
+ }catch(e){}
+};
+$("clearBtn").onclick=()=>{if(M.length&&confirm("Effacer les interventions après transmission ?")){M=[];save()}};
+if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));
